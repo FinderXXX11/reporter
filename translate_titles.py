@@ -1,12 +1,16 @@
-import requests
-import json
 import os
+import json
 import sys
 
 CACHE_FILE = "translation_cache.json"
-ENDPOINT = "https://translate.argosopentech.com/translate"
 
-# Wczytaj cache jeśli istnieje
+try:
+    import argostranslate.package, argostranslate.translate
+    argostranslate_installed = True
+except ImportError:
+    argostranslate_installed = False
+
+# Wczytaj cache
 if os.path.exists(CACHE_FILE):
     with open(CACHE_FILE, "r", encoding="utf-8") as f:
         cache = json.load(f)
@@ -28,21 +32,17 @@ def translate_to_polish(text):
     if text in cache:
         return cache[text]
 
-    payload = {
-        "q": text,
-        "source": "ru",
-        "target": "pl",
-        "format": "text"
-    }
-
-    try:
-        response = requests.post(ENDPOINT, data=payload, timeout=10)
-        if response.status_code == 200 and response.text.strip().startswith("{"):
-            translated = response.json().get("translatedText", "")
-        else:
-            translated = "[BŁĄD TŁUMACZENIA]"
-    except Exception as e:
-        translated = f"[BŁĄD: {e}]"
+    if not argostranslate_installed:
+        translated = "[Brak tłumaczenia: brak biblioteki argostranslate]"
+    else:
+        installed_languages = argostranslate.translate.get_installed_languages()
+        try:
+            from_lang = next(lang for lang in installed_languages if lang.code == "ru")
+            to_lang = next(lang for lang in installed_languages if lang.code == "pl")
+            translation = from_lang.get_translation(to_lang)
+            translated = translation.translate(text)
+        except StopIteration:
+            translated = "[Brak tłumaczenia: zainstaluj model RU→PL: `argospm install translate-ru_pl`]"
 
     cache[text] = translated
     save_cache()

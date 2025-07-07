@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from utils import get_user_agent
 from keywords import keywords
 from datetime import datetime, timedelta
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs, unquote
 import re
 
 def extract_domain(url):
@@ -21,25 +21,20 @@ def parse_date_generic(text):
     for pattern in patterns:
         match = re.search(pattern, text)
         if match:
-            try:
-                for fmt in ["%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y", "%Y/%m/%d"]:
-                    try:
-                        dt = datetime.strptime(match.group(0), fmt)
-                        return dt.strftime("%Y-%m-%d %H:%M"), "pattern"
-                    except:
-                        continue
-            except:
-                pass
-    return "", "none"
+            for fmt in ["%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y", "%Y/%m/%d"]:
+                try:
+                    dt = datetime.strptime(match.group(0), fmt)
+                    return dt.strftime("%Y-%m-%d %H:%M"), "pattern", dt
+                except:
+                    continue
+    return "", "none", None
 
 def search_yandex():
     results = []
-    headers = {
-        "User-Agent": get_user_agent(),
-        "Accept-Language": "ru,en;q=0.9",
-    }
+    headers = {"User-Agent": get_user_agent(), "Accept-Language": "ru,en;q=0.9"}
+    cutoff = datetime.now() - timedelta(days=2)
     for q in keywords:
-        url = f"https://yandex.ru/search/?text={q}&from_day=2"
+        url = f"https://yandex.ru/search/?text={q}&lr=213&from_day=2"
         try:
             r = requests.get(url, headers=headers, timeout=10)
             soup = BeautifulSoup(r.text, "html.parser")
@@ -50,7 +45,9 @@ def search_yandex():
                 title = a.get_text(strip=True)
                 link = a["href"]
                 snippet = block.get_text()
-                published, src = parse_date_generic(snippet)
+                published, src, pub_dt = parse_date_generic(snippet)
+                if pub_dt and pub_dt < cutoff:
+                    continue
                 results.append({
                     "title": title,
                     "url": link,
@@ -60,15 +57,24 @@ def search_yandex():
                     "domain": extract_domain(link),
                     "engine": "Yandex"
                 })
-        except Exception as e:
+        except Exception:
             continue
     return results
+
+def decode_bing_link(url):
+    # próbujemy wyciągnąć URL z parametru "u="
+    parsed = urlparse(url)
+    qs = parse_qs(parsed.query)
+    if "u" in qs:
+        return unquote(qs["u"][0])
+    return url
 
 def search_bing():
     results = []
     headers = {"User-Agent": get_user_agent()}
+    cutoff = datetime.now() - timedelta(days=2)
     for q in keywords:
-        url = f"https://www.bing.com/search?q={q}"
+        url = f"https://www.bing.com/search?q={q}&qft=+filterui:age-lt48hrs"
         try:
             r = requests.get(url, headers=headers, timeout=10)
             soup = BeautifulSoup(r.text, "html.parser")
@@ -77,19 +83,24 @@ def search_bing():
                 if not a:
                     continue
                 title = a.get_text(strip=True)
-                link = a["href"]
+                raw_link = a.get("href")
+                if not raw_link:
+                    continue
+                real_link = decode_bing_link(raw_link)
                 snippet = li.get_text()
-                published, src = parse_date_generic(snippet)
+                published, src, pub_dt = parse_date_generic(snippet)
+                if pub_dt and pub_dt < cutoff:
+                    continue
                 results.append({
                     "title": title,
-                    "url": link,
+                    "url": real_link,
                     "snippet": snippet,
                     "published": published,
                     "published_source": src,
-                    "domain": extract_domain(link),
+                    "domain": extract_domain(real_link),
                     "engine": "Bing"
                 })
-        except:
+        except Exception:
             continue
     return results
 
@@ -99,27 +110,32 @@ def search_rss():
         "https://topwar.ru/rss.xml",
         "https://function.mil.ru/rss.xml",
         "https://ria.ru/export/rss2/politics/index.xml",
-        "https://tass.ru/rss/v2.xml"
+        "https://tass.ru/rss/v2.xml",
+        "https://tvzvezda.ru/rss.xml",
+        "https://redstar.ru/feed/"
     ]
     results = []
+    cutoff = datetime.now() - timedelta(days=2)
     for url in feeds:
         d = feedparser.parse(url)
-        for entry in d.entries[:20]:
+        for entry in d.entries:
             title = entry.title
             link = entry.link
             snippet = entry.get("summary", "")
-            published = entry.get("published", "")
             try:
-                dt = datetime(*entry.published_parsed[:6]).strftime("%Y-%m-%d %H:%M")
+                dt = datetime(*entry.published_parsed[:6])
+                if dt < cutoff:
+                    continue
+                published = dt.strftime("%Y-%m-%d %H:%M")
                 src = "rss"
             except:
-                dt = ""
+                published = ""
                 src = "none"
             results.append({
                 "title": title,
                 "url": link,
                 "snippet": snippet,
-                "published": dt,
+                "published": published,
                 "published_source": src,
                 "domain": extract_domain(link),
                 "engine": "RSS"
