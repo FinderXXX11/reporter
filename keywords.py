@@ -1,7 +1,7 @@
 keywords = [
-    "военные учения site:ria.ru",
-    "тактические манёвры site:tass.ru",
-    "армия РФ учения site:mil.ru",
+    "военные учения site:mil.ru",
+    "тактические манёвры site:ria.ru",
+    "армия РФ учения site:tass.ru",
     "боеготовность войск site:rg.ru",
     "военные сборы резервистов site:topwar.ru"
 ]
