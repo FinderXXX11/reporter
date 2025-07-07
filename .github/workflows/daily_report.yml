@@ -1,0 +1,22 @@
+name: Daily Military Report
+
+on:
+  schedule:
+    - cron: "0 6 * * *"  # codziennie o 6:00 UTC
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - run: pip install -r requirements.txt
+    - run: python main.py
+    - uses: actions/upload-artifact@v4
+      with:
+        name: report
+        path: reports/
