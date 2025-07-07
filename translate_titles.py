@@ -2,6 +2,7 @@ import requests
 import json
 import os
 import sys
+import time
 
 CACHE_FILE = "translation_cache.json"
 
@@ -34,14 +35,19 @@ def translate_to_polish(text):
         "target": "pl",
         "format": "text"
     }
-    try:
-        response = requests.post(url, data=payload, timeout=10)
-        if response.status_code == 200:
-            translated = response.json().get("translatedText", "")
-        else:
-            translated = "[BŁĄD TŁUMACZENIA]"
-    except Exception as e:
-        translated = f"[BŁĄD: {e}]"
+
+    translated = "[BŁĄD TŁUMACZENIA]"
+    for attempt in range(3):
+        try:
+            response = requests.post(url, data=payload, timeout=10)
+            if response.status_code == 200 and response.text.strip().startswith("{"):
+                translated = response.json().get("translatedText", "")
+                break
+            else:
+                translated = "[BŁĄD: niepoprawna odpowiedź]"
+        except Exception as e:
+            translated = f"[BŁĄD: {e}]"
+            time.sleep(2)
 
     cache[text] = translated
     save_cache()
