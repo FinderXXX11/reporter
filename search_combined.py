@@ -119,4 +119,4 @@ def search_rss():
     return results
 
 def search_all_sources():
-    return search_yandex() + search_bing() + search_rss()
+    return search_yandex() + search_rss()
