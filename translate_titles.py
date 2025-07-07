@@ -6,6 +6,13 @@ import time
 
 CACHE_FILE = "translation_cache.json"
 
+# Lista endpointów LibreTranslate do przetestowania w kolejności
+ENDPOINTS = [
+    "https://translate.argosopentech.com/translate",
+    "https://libretranslate.de/translate",
+    "https://libretranslate.com/translate"
+]
+
 # Wczytaj cache jeśli istnieje
 if os.path.exists(CACHE_FILE):
     with open(CACHE_FILE, "r", encoding="utf-8") as f:
@@ -24,35 +31,40 @@ def clear_cache():
         os.remove(CACHE_FILE)
     print("🧹 Cache tłumaczeń został wyczyszczony.")
 
-def translate_to_polish(text):
-    if text in cache:
-        return cache[text]
-
-    url = "https://libretranslate.de/translate"
+def try_translate_with_endpoint(text, url):
     payload = {
         "q": text,
         "source": "ru",
         "target": "pl",
         "format": "text"
     }
-
-    translated = "[BŁĄD TŁUMACZENIA]"
     for attempt in range(3):
         try:
             response = requests.post(url, data=payload, timeout=10)
             if response.status_code == 200 and response.text.strip().startswith("{"):
-                translated = response.json().get("translatedText", "")
-                break
+                return response.json().get("translatedText", "")
             else:
-                translated = "[BŁĄD: niepoprawna odpowiedź]"
-        except Exception as e:
-            translated = f"[BŁĄD: {e}]"
+                time.sleep(1)
+        except Exception:
             time.sleep(2)
+    return None
+
+def translate_to_polish(text):
+    if text in cache:
+        return cache[text]
+
+    translated = "[BŁĄD TŁUMACZENIA]"
+
+    for endpoint in ENDPOINTS:
+        result = try_translate_with_endpoint(text, endpoint)
+        if result:
+            translated = result
+            break
 
     cache[text] = translated
     save_cache()
     return translated
 
-# Uruchom: python translate_titles.py clear
+# Uruchomienie: python translate_titles.py clear
 if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "clear":
     clear_cache()
