@@ -61,58 +61,34 @@ def search_yandex():
             continue
     return results
 
-def decode_bing_link(url):
-    # próbujemy wyciągnąć URL z parametru "u="
     parsed = urlparse(url)
     qs = parse_qs(parsed.query)
     if "u" in qs:
         return unquote(qs["u"][0])
     return url
 
-def search_bing():
-    results = []
-    headers = {"User-Agent": get_user_agent()}
-    cutoff = datetime.now() - timedelta(days=2)
-    for q in keywords:
-        url = f"https://www.bing.com/search?q={q}&qft=+filterui:age-lt48hrs"
-        try:
-            r = requests.get(url, headers=headers, timeout=10)
-            soup = BeautifulSoup(r.text, "html.parser")
-            for li in soup.select("li.b_algo"):
-                a = li.find("a")
-                if not a:
-                    continue
-                title = a.get_text(strip=True)
-                raw_link = a.get("href")
-                if not raw_link:
-                    continue
-                real_link = decode_bing_link(raw_link)
-                snippet = li.get_text()
-                published, src, pub_dt = parse_date_generic(snippet)
-                if pub_dt and pub_dt < cutoff:
-                    continue
-                results.append({
-                    "title": title,
-                    "url": real_link,
-                    "snippet": snippet,
-                    "published": published,
-                    "published_source": src,
-                    "domain": extract_domain(real_link),
-                    "engine": "Bing"
-                })
-        except Exception:
-            continue
-    return results
 
 def search_rss():
     import feedparser
     feeds = [
-        "https://topwar.ru/rss.xml",
         "https://function.mil.ru/rss.xml",
-        "https://ria.ru/export/rss2/politics/index.xml",
         "https://tass.ru/rss/v2.xml",
+        "https://topwar.ru/rss.xml",
+        "https://redstar.ru/feed/",
         "https://tvzvezda.ru/rss.xml",
-        "https://redstar.ru/feed/"
+        "https://ria.ru/export/rss2/politics/index.xml",
+        "https://www.belta.by/rss/politics.rss",
+        "https://naviny.online/rss.xml",
+        "https://www.ukrinform.ua/rubric-defense.rss",
+        "https://www.unian.net/rss/publications/unian.rss",
+        "https://defence-ua.com/rss.html",
+        "https://mil.in.ua/uk/feed/",
+        "https://www.reutersagency.com/feed/?best-sectors=conflict",
+        "https://www.aljazeera.com/xml/rss/all.xml",
+        "https://defence-blog.com/feed/",
+        "https://www.nato.int/cps/en/natohq/news_rss.htm",
+        "https://kyivindependent.com/feed",
+        "https://understandingwar.org/rss.xml"
     ]
     results = []
     cutoff = datetime.now() - timedelta(days=2)

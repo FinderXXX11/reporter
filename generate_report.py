@@ -3,43 +3,48 @@ import os
 from urllib.parse import urlparse
 from translate_titles import translate_to_polish
 
-def extract_domain(url):
-    try:
-        netloc = urlparse(url).netloc
-        domain = netloc.replace("www.", "").split("/")[0]
-        return domain
-    except:
-        return "nieznane źródło"
-
-# Kategorie i słowa kluczowe
-CATEGORIES = {
-    "Ćwiczenia i szkolenia": ["учения", "тренировка", "подготовка", "тактические", "манёвры", "боеготовность"],
-    "Modernizacja sprzętu": ["модернизация", "техника", "вооружение", "ракета", "поставка", "доставка", "новая система"],
-    "Zmiany kadrowe": ["назначен", "уволен", "командующий", "генерал", "перемещения", "кадровые"]
+CATEGORY_MAP = {
+    "mil.ru": "Rosja",
+    "tass.ru": "Rosja",
+    "topwar.ru": "Rosja",
+    "redstar.ru": "Rosja",
+    "tvzvezda.ru": "Rosja",
+    "ria.ru": "Rosja",
+    "belta.by": "Białoruś",
+    "naviny.online": "Białoruś",
+    "ukrinform.ua": "Ukraina",
+    "unian.net": "Ukraina",
+    "defence-ua.com": "Ukraina",
+    "mil.in.ua": "Ukraina",
+    "kyivindependent.com": "Ukraina",
+    "reutersagency.com": "Międzynarodowe",
+    "aljazeera.com": "Międzynarodowe",
+    "defence-blog.com": "Międzynarodowe",
+    "nato.int": "NATO",
+    "understandingwar.org": "Międzynarodowe"
 }
 
-def categorize(text_ru):
-    text_lower = text_ru.lower()
-    for category, keywords in CATEGORIES.items():
-        for word in keywords:
-            if word in text_lower:
-                return category
-    return "Inne"
+def extract_domain(url):
+    try:
+        return urlparse(url).netloc.replace("www.", "").lower()
+    except:
+        return "nieznane"
+
+def categorize_by_source(domain):
+    return CATEGORY_MAP.get(domain, "Inne")
 
 def generate_html_report(results):
     today = date.today().isoformat()
     for r in results:
         r["domain"] = extract_domain(r["url"])
+        r["category"] = categorize_by_source(r["domain"])
         r["published"] = r.get("published", "")
         r["published_source"] = r.get("published_source", "nieznana")
-        r["category"] = categorize(r["title"])
 
     sorted_results = sorted(results, key=lambda x: (x["category"], x["domain"], x["published"]))
 
-    html = f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Raport {today}</title></head><body>
-<h1>Raport dzienny – {today}</h1>
-"""
+    html = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Raport {}</title></head><body>".format(today)
+    html += "<h1>Raport dzienny – {}</h1>".format(today)
 
     categories = sorted(set(r["category"] for r in sorted_results))
     for cat in categories:
