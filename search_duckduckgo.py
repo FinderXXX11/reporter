@@ -4,16 +4,14 @@ from utils import get_user_agent
 from keywords import keywords
 from datetime import datetime
 import re
+from urllib.parse import urlparse, parse_qs
 
 def parse_date(raw_date):
-    # Spróbuj sparsować różne formaty na standardowy: YYYY-MM-DD HH:MM
     formats = [
-        "%d %B %Y",         # 7 июля 2025 (z tłumaczeniem może być trudne)
-        "%d.%m.%Y",         # 07.07.2025
-        "%d/%m/%Y",         # 07/07/2025
-        "%Y-%m-%d",         # 2025-07-07
-        "%Y-%m-%dT%H:%M:%S", # 2025-07-07T08:00:00
-        "%Y-%m-%dT%H:%M:%SZ" # z Z
+        "%d.%m.%Y",
+        "%Y-%m-%d",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%SZ"
     ]
     for fmt in formats:
         try:
@@ -57,6 +55,13 @@ def try_extract_date_from_page(url):
         pass
     return "", "none"
 
+def clean_duckduckgo_link(href):
+    if "/l/?kh=" in href and "uddg=" in href:
+        parsed = parse_qs(urlparse(href).query)
+        if "uddg" in parsed:
+            return parsed["uddg"][0]
+    return href
+
 def search_duckduckgo():
     results = []
     for query in keywords:
@@ -71,11 +76,12 @@ def search_duckduckgo():
                 continue
 
             title = link_tag.get_text()
-            link = link_tag.get("href")
+            raw_link = link_tag.get("href")
+            link = clean_duckduckgo_link(raw_link)
+
             if link and "duckduckgo.com/y.js" not in link:
                 snippet = snippet_tag.get_text() if snippet_tag else ""
                 published, published_source = try_extract_date_from_snippet(snippet)
-
                 if not published:
                     published, published_source = try_extract_date_from_page(link)
 
@@ -84,7 +90,6 @@ def search_duckduckgo():
                     "url": link,
                     "snippet": snippet,
                     "published": published,
-                    "published_source": published_source,
-                    "source": "duckduckgo"
+                    "published_source": published_source
                 })
     return results
