@@ -10,7 +10,6 @@ try:
 except ImportError:
     argostranslate_installed = False
 
-# Wczytaj cache
 if os.path.exists(CACHE_FILE):
     with open(CACHE_FILE, "r", encoding="utf-8") as f:
         cache = json.load(f)
@@ -42,7 +41,7 @@ def translate_to_polish(text):
             translation = from_lang.get_translation(to_lang)
             translated = translation.translate(text)
         except StopIteration:
-            translated = "[Brak tłumaczenia: zainstaluj model RU→PL: `argospm install translate-ru_pl`]"
+            translated = "[Brak tłumaczenia: zainstaluj model RU→PL: argospm install translate-ru_pl]"
 
     cache[text] = translated
     save_cache()
