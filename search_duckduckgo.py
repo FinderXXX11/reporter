@@ -13,6 +13,6 @@ def search_duckduckgo():
         for result in soup.select("a.result__a"):
             title = result.get_text()
             link = result.get("href")
-            if link and link.startswith("http"):
+            if link and "duckduckgo.com/y.js" not in link:
                 results.append({"title": title, "url": link, "source": "duckduckgo"})
     return results
